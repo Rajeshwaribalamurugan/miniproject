@@ -1,0 +1,66 @@
+# Install dependencies (Colab usually has these pre-installed)
+!pip install pandas scikit-learn matplotlib seaborn
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
+
+# ----------------------------
+# STEP 1: Load or simulate network traffic data
+# ----------------------------
+
+# For demo: Create synthetic network traffic dataset
+np.random.seed(42)
+data = {
+    "packet_size": np.random.normal(500, 50, 1000).tolist() + np.random.normal(1200, 20, 50).tolist(),  # abnormal large packets
+    "duration": np.random.normal(60, 10, 1000).tolist() + np.random.normal(5, 2, 50).tolist(),  # abnormally short connections
+    "src_port": np.random.randint(1024, 65535, 1050),
+    "dst_port": np.random.choice([80, 443, 22, 21, 8080, 3306], 1050)
+}
+
+df = pd.DataFrame(data)
+
+print("Dataset sample:")
+print(df.head())
+
+# ----------------------------
+# STEP 2: Preprocessing
+# ----------------------------
+scaler = StandardScaler()
+features = ["packet_size", "duration", "src_port", "dst_port"]
+X = scaler.fit_transform(df[features])
+
+# ----------------------------
+# STEP 3: Train Isolation Forest (unsupervised anomaly detection)
+# ----------------------------
+iso = IsolationForest(contamination=0.05, random_state=42)
+df["anomaly"] = iso.fit_predict(X)
+
+# anomaly = -1 means unusual pattern
+print("\nAnomaly counts:")
+print(df["anomaly"].value_counts())
+
+# ----------------------------
+# STEP 4: Visualize anomalies
+# ----------------------------
+plt.figure(figsize=(10,6))
+sns.scatterplot(
+    x=df["packet_size"], 
+    y=df["duration"], 
+    hue=df["anomaly"], 
+    palette={1:"blue", -1:"red"}, 
+    alpha=0.6
+)
+plt.title("Network Traffic Anomaly Detection (Red = Suspicious)")
+plt.xlabel("Packet Size")
+plt.ylabel("Duration")
+plt.show()
+
+# ----------------------------
+# STEP 5: Display suspicious traffic
+# ----------------------------
+print("\nSuspicious traffic detected:")
+print(df[df["anomaly"] == -1].head(10))
